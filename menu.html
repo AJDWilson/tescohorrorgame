@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super scary and frightening Tesco game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: 'Courier New', Courier, monospace;
+      color: #ffffff;
+    }
+
+    #viewport {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    /* --- MAIN MENU STYLES --- */
+    #menu-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding-left: 8vw;
+      transition: opacity 1s ease;
+    }
+
+    #menu-container.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #menu-bg-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1;
+      image-rendering: pixelated;
+      filter: contrast(125%) brightness(55%) grayscale(20%);
+    }
+
+    .menu-content {
+      position: relative;
+      z-index: 20;
+      max-width: 650px;
+    }
+
+    .game-title {
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: 4px;
+      color: #ff2222;
+      text-transform: uppercase;
+      text-shadow: 
+        0 0 10px rgba(255, 0, 0, 0.7),
+        2px 2px 0px #000000;
+      margin-bottom: 40px;
+      line-height: 1.2;
+      animation: flicker 3s infinite alternate;
+    }
+
+    .menu-nav {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .menu-btn {
+      background: rgba(10, 15, 22, 0.75);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+      padding: 14px 40px;
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: bold;
+      letter-spacing: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      text-align: left;
+      width: 280px;
+      transition: all 0.25s cubic-bezier(0.1, 0.9, 0.2, 1);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    .menu-btn:hover {
+      background: rgba(180, 0, 0, 0.85);
+      border-color: #ff3333;
+      color: #ffffff;
+      transform: translateX(10px);
+      box-shadow: 0 0 25px rgba(255, 0, 0, 0.6);
+    }
+
+    .menu-btn:active {
+      transform: translateX(5px) scale(0.98);
+    }
+
+    .disclaimer {
+      position: absolute;
+      bottom: 25px;
+      left: 8vw;
+      z-index: 20;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: 2px;
+    }
+
+    .vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 12;
+      background: radial-gradient(
+        circle, 
+        rgba(0, 0, 0, 0) 40%, 
+        rgba(0, 0, 0, 0.85) 90%, 
+        rgba(0, 0, 0, 0.98) 100%
+      );
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      41.99% { opacity: 1; }
+      42% { opacity: 0.3; }
+      43% { opacity: 1; }
+      45% { opacity: 0.2; }
+      46% { opacity: 1; }
+      84.99% { opacity: 1; }
+      85% { opacity: 0.4; }
+      86% { opacity: 1; }
+    }
+
+    /* --- GAME STYLES --- */
+    canvas#game-canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    canvas#noise-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 15;
+      image-rendering: pixelated;
+      opacity: 0.14;
+    }
+
+    .scanlines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.4) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 16;
+    }
+
+    #hand-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 25;
+      overflow: hidden;
+    }
+
+    .hand-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+
+    .hand-img.hidden {
+      display: none;
+    }
+
+    .action-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 110px;
+      z-index: 30;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding-bottom: 20px;
+    }
+
+    .action-btn {
+      background: rgba(10, 15, 22, 0.85);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      color: #ffffff;
+      padding: 12px 36px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: bold;
+      letter-spacing: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.25s cubic-bezier(0.1, 0.9, 0.2, 1);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+      transform: translateY(20px);
+      opacity: 0.6;
+    }
+
+    .action-bar-container:hover .action-btn {
+      transform: translateY(0);
+      opacity: 1;
+      background: rgba(25, 35, 45, 0.95);
+      border-color: #ffffff;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.35);
+    }
+
+    #jumpscare-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 85;
+      display: none;
+      background: #000000;
+    }
+
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #080808;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 40;
+      transition: opacity 0.5s ease;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top: 4px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 0, 0, 0.92);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+    }
+
+    #game-over-screen.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #game-over-screen h1 {
+      color: #ff2222;
+      font-size: 3rem;
+      letter-spacing: 6px;
+      margin-bottom: 15px;
+      text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+    }
+
+    #game-over-reason {
+      font-size: 1rem;
+      color: #dddddd;
+      margin-bottom: 30px;
+      letter-spacing: 2px;
+    }
+
+    #restart-btn {
+      background: #ff2222;
+      color: #ffffff;
+      border: none;
+      padding: 12px 36px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 3px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+    }
+
+    #restart-btn:hover {
+      background: #ff5555;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="menu-container">
+      <video id="menu-bg-video" autoplay loop muted playsinline>
+        <source src="https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/background-video.mp4" type="video/mp4">
+      </video>
+      <div class="vignette"></div>
+      <div class="menu-content">
+        <h1 class="game-title">Super scary and frightening Tesco game</h1>
+        <nav class="menu-nav">
+          <button class="menu-btn" id="play-btn">► PLAY</button>
+        </nav>
+      </div>
+      <p class="disclaimer">HEADPHONES RECOMMENDED • USE MOUSE TO LOOK AROUND</p>
+    </div>
+
+    <audio id="bg-audio" loop preload="auto">
+      <source src="https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/background.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="loading-screen">
+      <div class="spinner"></div>
+      <p style="letter-spacing: 3px; font-size: 0.9rem;" id="loading-text">LOADING ASSETS (0/12)...</p>
+    </div>
+
+    <video id="jumpscare-video" playsinline preload="auto"></video>
+
+    <div id="game-over-screen">
+      <h1>YOU DIED</h1>
+      <p id="game-over-reason">A monster got you...</p>
+      <button id="restart-btn">TRY AGAIN</button>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hand-overlay">
+      <img id="hand-idle" class="hand-img" src="https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/hand-1.png" alt="Idle Hand">
+      <img id="hand-spray" class="hand-img hidden" src="https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/hand-2.png" alt="Spraying Hand">
+    </div>
+
+    <canvas id="noise-canvas"></canvas>
+
+    <div class="scanlines"></div>
+
+    <div class="action-bar-container">
+      <button class="action-btn" id="turn-btn">◄ TURN AROUND ►</button>
+    </div>
+  </div>
+
+  <script>
+    const cb = "?v=" + Date.now();
+    const ASSETS_3D = {
+      panorama: "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/panorama.png" + cb,
+      blobby1:  "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/blobby1.png" + cb,
+      blobby2:  "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/blobby2.png" + cb,
+      fruit1:   "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/fruit1.png" + cb,
+      fruit2:   "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/fruit2.png" + cb
+    };
+
+    const SOUND_URLS = {
+      turning:    "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/turning.mp3",
+      fruit:      "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/fruit-monster.mp3",
+      blobby:     "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/blobby.mp3",
+      weedkiller: "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/weedkiller.mp3",
+      intercom:   "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/intercom%20sound.MP3"
+    };
+
+    const JUMPSCARE_URLS = {
+      fruit:  "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/fruit-jumpscare.mp4",
+      blobby: "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/blobby-jumpscare.mp4"
+    };
+
+    // Aisle definitions in radians
+    const AISLE_1_RAD = Math.PI / 4;        // 45 degrees
+    const AISLE_2_RAD = 5 * Math.PI / 4;    // 225 degrees
+
+    const viewportEl = document.getElementById("viewport");
+    const gameCanvas = document.getElementById("game-canvas");
+    const noiseCanvas = document.getElementById("noise-canvas");
+    const noiseCtx = noiseCanvas.getContext("2d");
+    const loadingScreen = document.getElementById("loading-screen");
+    const loadingText = document.getElementById("loading-text");
+    const turnBtn = document.getElementById("turn-btn");
+    const bgAudio = document.getElementById("bg-audio");
+    const gameOverScreen = document.getElementById("game-over-screen");
+    const gameOverReasonEl = document.getElementById("game-over-reason");
+    const restartBtn = document.getElementById("restart-btn");
+    const jumpscareVideo = document.getElementById("jumpscare-video");
+
+    const menuContainer = document.getElementById("menu-container");
+    const menuBgVideo = document.getElementById("menu-bg-video");
+    const playBtn = document.getElementById("play-btn");
+
+    const handIdleEl = document.getElementById("hand-idle");
+    const handSprayEl = document.getElementById("hand-spray");
+
+    let scene, camera, renderer;
+    let monsterMaterials = {};
+    let isAudioPlaying = false;
+    let intercomPlayed = false;
+    let isGameOver = false;
+    let isSpraying = false;
+    let gameStarted = false;
+
+    // Web Audio API Context and Audio Buffers
+    let audioCtx = null;
+    let soundBuffers = {};
+
+    let mouseNormX = 0;
+    let panYaw = 0;
+    let currentBaseYaw = AISLE_1_RAD;
+    const lerpSpeed = 0.08;
+    const maxPanAngle = 0.35;
+
+    let isTurning = false;
+    let turnStartTime = 0;
+    let turnStartYaw = 0;
+    let turnTargetYaw = 0;
+    const turnDuration = 480;
+
+    // Active Monsters State
+    let fruitState = { active: false, aisle: 0, spawnTime: 0 };
+    let blobbyState = {
+      active: false,
+      aisle: 0,
+      spawnTime: 0,
+      lookAwayRequired: false,
+      fakeSoundTriggered: false,
+      fakeSoundTime: 0
+    };
+
+    const targetOpacity = {
+      blobby1: 0, blobby2: 0,
+      fruit1: 0,  fruit2: 0
+    };
+
+    const noiseBuffer = document.createElement("canvas");
+    noiseBuffer.width = 256;
+    noiseBuffer.height = 256;
+    const noiseBufferCtx = noiseBuffer.getContext("2d");
+
+    // Initialize Web Audio Context
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        return audioCtx.resume();
+      }
+      return Promise.resolve();
+    }
+
+    function playIntercomSFXInternal() {
+      if (!audioCtx || !soundBuffers.intercom || intercomPlayed) return;
+      intercomPlayed = true;
+
+      const buffer = soundBuffers.intercom;
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      const gainNode = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+      const duration = buffer.duration;
+      const fadeDuration = 0.5;
+      const fadeStart = Math.max(0, duration - fadeDuration);
+
+      gainNode.gain.setValueAtTime(1.0, now);
+      gainNode.gain.setValueAtTime(1.0, now + fadeStart);
+      gainNode.gain.linearRampToValueAtTime(0.001, now + duration);
+
+      source.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      source.start(now);
+    }
+
+    function playIntercomSFX() {
+      if (intercomPlayed || !soundBuffers.intercom) return;
+      initAudioContext().then(() => playIntercomSFXInternal());
+    }
+
+    function playSpatialSFX(bufferKey, aisleNumber, volume = 1.0) {
+      if (!audioCtx || !soundBuffers[bufferKey]) return;
+
+      const buffer = soundBuffers[bufferKey];
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      const panner = audioCtx.createPanner();
+      panner.panningModel = 'HRTF';
+      panner.distanceModel = 'inverse';
+      panner.refDistance = 1;
+      panner.maxDistance = 50;
+
+      const aisleRad = (aisleNumber === 1) ? AISLE_1_RAD : AISLE_2_RAD;
+      panner.setPosition(Math.sin(aisleRad) * 5, 0, -Math.cos(aisleRad) * 5);
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = volume;
+
+      source.connect(panner);
+      panner.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      source.start(0);
+    }
+
+    function playTurningSFX(volume = 0.35, fadeDuration = 0.25) {
+      if (!audioCtx || !soundBuffers.turning) return;
+
+      const buffer = soundBuffers.turning;
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+      const dur = buffer.duration;
+
+      gain.gain.setValueAtTime(volume, now);
+      const fadeStart = Math.max(now, now + dur - fadeDuration);
+      gain.gain.setValueAtTime(volume, fadeStart);
+      gain.gain.linearRampToValueAtTime(0.001, now + dur);
+
+      source.connect(gain);
+      gain.connect(audioCtx.destination);
+      source.start(now);
+    }
+
+    function playWeedkillerSFX(volume = 0.7, duration = 1.0, fadeDuration = 0.35) {
+      if (!audioCtx || !soundBuffers.weedkiller) return;
+
+      const buffer = soundBuffers.weedkiller;
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+
+      gain.gain.setValueAtTime(volume, now);
+      const fadeStart = now + Math.max(0, duration - fadeDuration);
+      gain.gain.setValueAtTime(volume, fadeStart);
+      gain.gain.linearRampToValueAtTime(0.001, now + duration);
+
+      source.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      source.start(now);
+      source.stop(now + duration);
+    }
+
+    function playBackgroundAudio() {
+      bgAudio.volume = 0.2;
+      bgAudio.play().then(() => {
+        isAudioPlaying = true;
+      }).catch(() => {});
+    }
+
+    function isLookingAt(aisleNumber) {
+      const targetRad = (aisleNumber === 1) ? AISLE_1_RAD : AISLE_2_RAD;
+      const currentYawNorm = ((camera.rotation.y % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      
+      let diff = Math.abs(currentYawNorm - targetRad);
+      if (diff > Math.PI) diff = (Math.PI * 2) - diff;
+
+      return diff < 0.85;
+    }
+
+    function scheduleMonsterSpawns() {
+      if (isGameOver) return;
+
+      const checkTime = 5000 + Math.random() * 6000;
+
+      setTimeout(() => {
+        if (!isGameOver) {
+          attemptSpawn();
+          scheduleMonsterSpawns();
+        }
+      }, checkTime);
+    }
+
+    function attemptSpawn() {
+      if (Math.random() > 0.4) return;
+
+      const pickMonster = Math.random() < 0.5 ? 'fruit' : 'blobby';
+      const pickAisle = Math.random() < 0.5 ? 1 : 2;
+
+      const aisleOccupied = (fruitState.active && fruitState.aisle === pickAisle) ||
+                            (blobbyState.active && blobbyState.aisle === pickAisle);
+
+      if (aisleOccupied) return;
+
+      if (pickMonster === 'fruit' && !fruitState.active) {
+        spawnFruitMonster(pickAisle);
+      } else if (pickMonster === 'blobby' && !blobbyState.active) {
+        spawnBlobby(pickAisle);
+      }
+    }
+
+    function spawnFruitMonster(aisle) {
+      fruitState.active = true;
+      fruitState.aisle = aisle;
+      fruitState.spawnTime = performance.now();
+      playSpatialSFX('fruit', aisle, 1.0);
+    }
+
+    function spawnBlobby(aisle) {
+      blobbyState.active = true;
+      blobbyState.aisle = aisle;
+      blobbyState.spawnTime = performance.now();
+      blobbyState.fakeSoundTriggered = false;
+      blobbyState.fakeSoundTime = performance.now() + 4000 + Math.random() * 10000;
+
+      blobbyState.lookAwayRequired = isLookingAt(aisle);
+      playSpatialSFX('blobby', aisle, 1.0);
+    }
+
+    function triggerWeedkiller() {
+      if (isSpraying || isGameOver || isTurning || !gameStarted) return;
+
+      isSpraying = true;
+      handIdleEl.classList.add("hidden");
+      handSprayEl.classList.remove("hidden");
+
+      playWeedkillerSFX(0.7, 1.0, 0.35);
+
+      if (fruitState.active && isLookingAt(fruitState.aisle)) {
+        fruitState.active = false;
+      }
+
+      setTimeout(() => {
+        isSpraying = false;
+        handSprayEl.classList.add("hidden");
+        handIdleEl.classList.remove("hidden");
+      }, 1000);
+    }
+
+    // Viewport Click Trigger
+    viewportEl.addEventListener("click", (e) => {
+      if (!gameStarted) return;
+
+      initAudioContext();
+
+      if (!isAudioPlaying) playBackgroundAudio();
+      if (!intercomPlayed) playIntercomSFX();
+
+      if (e.target.closest("#turn-btn") || e.target.closest("#restart-btn")) return;
+
+      triggerWeedkiller();
+    });
+
+    // Start Game Function called by Play Button
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+
+      // Initialize audio context on user interaction
+      initAudioContext().then(() => {
+        playBackgroundAudio();
+      });
+
+      // Fade out menu container
+      menuContainer.classList.add("hidden");
+
+      setTimeout(() => {
+        menuContainer.style.display = "none";
+        menuBgVideo.pause();
+      }, 1000);
+
+      // Start loading assets and 3D engine
+      init3D();
+    }
+
+    playBtn.addEventListener("click", startGame);
+
+    function triggerGameOver(reason, monsterType) {
+      if (isGameOver) return;
+      isGameOver = true;
+
+      bgAudio.pause();
+
+      const jumpscareUrl = JUMPSCARE_URLS[monsterType];
+
+      if (jumpscareUrl) {
+        jumpscareVideo.src = jumpscareUrl;
+        jumpscareVideo.currentTime = 0;
+        jumpscareVideo.style.display = "block";
+
+        const onVideoFinish = () => {
+          jumpscareVideo.style.display = "none";
+          gameOverReasonEl.textContent = reason;
+          gameOverScreen.classList.add("active");
+        };
+
+        jumpscareVideo.onended = onVideoFinish;
+
+        jumpscareVideo.play().catch((err) => {
+          console.warn("Jumpscare play failed:", err);
+          onVideoFinish();
+        });
+      } else {
+        gameOverReasonEl.textContent = reason;
+        gameOverScreen.classList.add("active");
+      }
+    }
+
+    function resetGame() {
+      fruitState.active = false;
+      blobbyState.active = false;
+      isGameOver = false;
+
+      jumpscareVideo.pause();
+      jumpscareVideo.style.display = "none";
+      jumpscareVideo.src = "";
+
+      currentBaseYaw = AISLE_1_RAD;
+      gameOverScreen.classList.remove("active");
+
+      if (isAudioPlaying) playBackgroundAudio();
+    }
+
+    restartBtn.addEventListener("click", resetGame);
+
+    function init3D() {
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ canvas: gameCanvas, antialias: false });
+      renderer.setPixelRatio(1);
+      updateAspectAndFOV();
+
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin("anonymous");
+
+      const image3DKeys = Object.keys(ASSETS_3D);
+      const soundKeys = Object.keys(SOUND_URLS);
+      const totalToLoad = image3DKeys.length + soundKeys.length + 2;
+      let loadedCount = 0;
+
+      function checkAllLoaded() {
+        loadedCount++;
+        loadingText.textContent = `LOADING ASSETS (${loadedCount}/${totalToLoad})...`;
+
+        if (loadedCount === totalToLoad) {
+          loadingScreen.style.opacity = "0";
+          setTimeout(() => loadingScreen.style.display = "none", 500);
+
+          playIntercomSFX();
+          scheduleMonsterSpawns();
+          requestAnimationFrame(renderLoop);
+        }
+      }
+
+      // Preload Hand Overlay Images
+      const hand1Img = new Image();
+      hand1Img.src = "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/hand-1.png";
+      hand1Img.onload = checkAllLoaded;
+
+      const hand2Img = new Image();
+      hand2Img.src = "https://raw.githubusercontent.com/AJDWilson/tescohorrorgame/refs/heads/main/hand-2.png";
+      hand2Img.onload = checkAllLoaded;
+
+      // Pre-load Sound Buffers
+      soundKeys.forEach((key) => {
+        fetch(SOUND_URLS[key])
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return res.arrayBuffer();
+          })
+          .then(data => {
+            const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return tempCtx.decodeAudioData(data);
+          })
+          .then(buffer => {
+            soundBuffers[key] = buffer;
+            checkAllLoaded();
+          })
+          .catch(err => {
+            console.error(`Audio load error for key [${key}]:`, err);
+            checkAllLoaded();
+          });
+      });
+
+      // Load 3D Cylinders & Textures
+      const cylinderRadius = 10;
+      const fullArc = Math.PI * 2;
+
+      image3DKeys.forEach((key, index) => {
+        textureLoader.load(
+          ASSETS_3D[key],
+          (tex) => {
+            tex.generateMipmaps = false;
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.NearestFilter;
+
+            const imgAspect = tex.image.width / tex.image.height;
+            const meshHeight = (cylinderRadius * fullArc) / imgAspect;
+
+            const geo = new THREE.CylinderGeometry(
+              cylinderRadius,
+              cylinderRadius, 
+              meshHeight,
+              64, 1, true,
+              0, fullArc
+            );
+
+            const isBase = (key === "panorama");
+            const mat = new THREE.MeshBasicMaterial({ 
+              map: tex, 
+              side: THREE.BackSide, 
+              transparent: true,
+              opacity: isBase ? 1.0 : 0.0,
+              depthWrite: isBase,
+              depthTest: true
+            });
+
+            if (!isBase) monsterMaterials[key] = mat;
+
+            const cylinderMesh = new THREE.Mesh(geo, mat);
+            cylinderMesh.scale.x = -1;
+            cylinderMesh.renderOrder = isBase ? 0 : index;
+            scene.add(cylinderMesh);
+
+            checkAllLoaded();
+          }
+        );
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        mouseNormX = (e.clientX / window.innerWidth) * 2 - 1;
+      });
+
+      window.addEventListener("resize", updateAspectAndFOV);
+      turnBtn.addEventListener("click", triggerTurnAround);
+    }
+
+    function updateAspectAndFOV() {
+      const aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+
+      const targetHeight = 360;
+      const targetWidth = Math.round(targetHeight * aspect);
+      renderer.setSize(targetWidth, targetHeight, false);
+
+      noiseCanvas.width = targetWidth;
+      noiseCanvas.height = targetHeight;
+    }
+
+    function triggerTurnAround() {
+      if (isTurning || isGameOver || !gameStarted) return;
+
+      playTurningSFX(0.35, 0.25);
+
+      isTurning = true;
+      turnStartTime = performance.now();
+      turnStartYaw = currentBaseYaw;
+      turnTargetYaw = turnStartYaw + Math.PI;
+    }
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function generateStaticNoise() {
+      const imgData = noiseBufferCtx.createImageData(256, 256);
+      const buffer = new Uint32Array(imgData.data.buffer);
+      for (let i = 0; i < buffer.length; i++) {
+        const gray = Math.floor(Math.random() * 255);
+        buffer[i] = (255 << 24) | (gray << 16) | (gray << 8) | gray;
+      }
+      noiseBufferCtx.putImageData(imgData, 0, 0);
+
+      noiseCtx.clearRect(0, 0, noiseCanvas.width, noiseCanvas.height);
+      noiseCtx.drawImage(
+        noiseBuffer,
+        Math.random() * -20,
+        Math.random() * -20,
+        noiseCanvas.width + 20,
+        noiseCanvas.height + 20
+      );
+    }
+
+    function updateGameLogic(now) {
+      if (isGameOver) return;
+
+      if (fruitState.active) {
+        if (now - fruitState.spawnTime > 5000) {
+          triggerGameOver("The Fruit Monster caught you! You failed to spray him in time.", "fruit");
+        }
+      }
+
+      if (blobbyState.active) {
+        const elapsed = now - blobbyState.spawnTime;
+
+        if (blobbyState.lookAwayRequired) {
+          if (isLookingAt(blobbyState.aisle)) {
+            if (elapsed > 3000) {
+              triggerGameOver("Blobby saw you staring at him!", "blobby");
+            }
+          } else {
+            blobbyState.lookAwayRequired = false;
+          }
+        } 
+        else if (isLookingAt(blobbyState.aisle)) {
+          triggerGameOver("You turned around and looked back at Blobby!", "blobby");
+        }
+
+        if (!blobbyState.fakeSoundTriggered && now >= blobbyState.fakeSoundTime) {
+          blobbyState.fakeSoundTriggered = true;
+          playSpatialSFX('fruit', blobbyState.aisle, 1.0);
+        }
+
+        if (elapsed >= 20000) {
+          playSpatialSFX('blobby', blobbyState.aisle, 1.0);
+          blobbyState.active = false;
+        }
+      }
+
+      targetOpacity.fruit1  = (fruitState.active  && fruitState.aisle === 1)  ? 1 : 0;
+      targetOpacity.fruit2  = (fruitState.active  && fruitState.aisle === 2)  ? 1 : 0;
+      targetOpacity.blobby1 = (blobbyState.active && blobbyState.aisle === 1) ? 1 : 0;
+      targetOpacity.blobby2 = (blobbyState.active && blobbyState.aisle === 2) ? 1 : 0;
+    }
+
+    function renderLoop(now) {
+      const targetPanYaw = -mouseNormX * maxPanAngle;
+      panYaw += (targetPanYaw - panYaw) * lerpSpeed;
+
+      if (isTurning) {
+        const elapsed = now - turnStartTime;
+        const progress = Math.min(elapsed / turnDuration, 1.0);
+        const eased = easeInOutCubic(progress);
+
+        currentBaseYaw = turnStartYaw + (turnTargetYaw - turnStartYaw) * eased;
+
+        if (progress >= 1.0) isTurning = false;
+      }
+
+      const totalYaw = currentBaseYaw + panYaw;
+      camera.rotation.set(0, totalYaw, 0, "YXZ");
+
+      if (audioCtx) {
+        const forwardX = Math.sin(totalYaw);
+        const forwardZ = -Math.cos(totalYaw);
+        if (audioCtx.listener.forwardX) {
+          audioCtx.listener.forwardX.value = forwardX;
+          audioCtx.listener.forwardY.value = 0;
+          audioCtx.listener.forwardZ.value = forwardZ;
+          audioCtx.listener.upX.value = 0;
+          audioCtx.listener.upY.value = 1;
+          audioCtx.listener.upZ.value = 0;
+        } else {
+          audioCtx.listener.setOrientation(forwardX, 0, forwardZ, 0, 1, 0);
+        }
+      }
+
+      updateGameLogic(now);
+
+      for (const key in monsterMaterials) {
+        const mat = monsterMaterials[key];
+        const target = targetOpacity[key];
+        mat.opacity += (target - mat.opacity) * 0.15;
+      }
+
+      renderer.render(scene, camera);
+      generateStaticNoise();
+
+      requestAnimationFrame(renderLoop);
+    }
+  </script>
+</body>
+</html>
